@@ -12,11 +12,15 @@ import com.qline.tenant.model.Tenant;
 
 import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor
 @Repository
+@RequiredArgsConstructor
 public class TenantDao {
 
 	private final NamedParameterJdbcTemplate jdbc;
+
+	/*
+	 * CREATE TENANT
+	 */
 
 	public UUID create(
 
@@ -61,6 +65,10 @@ public class TenantDao {
 		return tenantId;
 	}
 
+	/*
+	 * FIND ALL TENANTS
+	 */
+
 	public List<Tenant> findAll() {
 
 		String sql = """
@@ -84,6 +92,10 @@ public class TenantDao {
 
 				tenantRowMapper());
 	}
+
+	/*
+	 * FIND TENANT USING WHATSAPP PHONE NUMBER ID
+	 */
 
 	public UUID findByWhatsappPhoneId(
 
@@ -130,6 +142,51 @@ public class TenantDao {
 					return null;
 				});
 	}
+
+	/*
+	 * GET TENANT NAME
+	 */
+
+	public String getTenantName(
+
+			UUID tenantId
+
+	) {
+
+		String sql = """
+
+				SELECT business_name
+
+				FROM tenants
+
+				WHERE id = :tenantId
+
+				""";
+
+		MapSqlParameterSource params = new MapSqlParameterSource()
+
+				.addValue("tenantId", tenantId);
+
+		return jdbc.query(
+
+				sql,
+
+				params,
+
+				rs -> {
+
+					if (rs.next()) {
+
+						return rs.getString("business_name");
+					}
+
+					return null;
+				});
+	}
+
+	/*
+	 * ROW MAPPER
+	 */
 
 	private RowMapper<Tenant> tenantRowMapper() {
 
