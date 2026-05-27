@@ -1,8 +1,5 @@
 package com.qline.queue.dto;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,17 +7,15 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class QueueTokenResponse {
-
-    private UUID id;
+public class QueueTrackingResponse {
 
     private Integer tokenNumber;
 
     private String status;
 
-    private String counterName;
+    private Integer peopleAhead;
 
-    private LocalDateTime createdAt;
+    private Integer estimatedWaitMinutes;
 
-    private UUID trackingId;
+    private String currentServingToken;
 }

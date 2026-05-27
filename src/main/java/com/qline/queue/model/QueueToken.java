@@ -3,21 +3,30 @@ package com.qline.queue.model;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record QueueToken(
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-		UUID id,
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class QueueToken {
 
-		UUID tenantId,
+	private UUID id;
 
-		UUID customerId,
+	private UUID tenantId;
 
-		Integer tokenNumber,
+	private UUID customerId;
 
-		String status,
+	private Integer tokenNumber;
 
-		String counterName,
+	private String status;
 
-		LocalDateTime createdAt
+	private String counterName;
 
-) {
+	private UUID publicTrackingId;
+
+	private LocalDateTime createdAt;
 }

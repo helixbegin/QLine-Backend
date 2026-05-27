@@ -1,12 +1,13 @@
 server:
-  port: 8081
+  port: ${PORT:8081}
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/qline_db
-    username: postgres
-    password: root
+    url: ${DATABASE_URL}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
 
 whatsapp:
-  access-token: EAAbrXzhMPVIBRUZCx4pZAY4uBPLVOpM39IKmFrXbs0wpEpyxzFozosgobxRubrScE9m2Azx2zAmoFD1SNwXwh2c09ADwJFuG70TGJ0mlZCACgYwm6RSOQHsJXzOq4jHe0JXdQHpfnTV7SARP9MUA8gbkJucV67t7RQyWHgo9psQJZA9sGISoGhbE0ZC8X3wZDZD
-  phone-number-id: 1056389994233516
+  access-token: ${WHATSAPP_ACCESS_TOKEN}
+  phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
+  verify-token: ${WHATSAPP_VERIFY_TOKEN}

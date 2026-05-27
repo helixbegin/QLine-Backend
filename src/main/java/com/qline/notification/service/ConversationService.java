@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import com.qline.notification.dao.WhatsappSessionDao;
 import com.qline.notification.dto.SendWhatsappRequest;
+import com.qline.queue.dto.QueueTokenResponse;
 import com.qline.queue.service.QueueService;
 import com.qline.tenant.dao.TenantDao;
 
@@ -15,235 +16,236 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ConversationService {
 
-    private final WhatsappSessionDao sessionDao;
+	private final WhatsappSessionDao sessionDao;
 
-    private final WhatsappService whatsappService;
+	private final WhatsappService whatsappService;
 
-    private final QueueService queueService;
+	private final QueueService queueService;
 
-    private final TenantDao tenantDao;
+	private final TenantDao tenantDao;
 
-    public void processIncomingMessage(
+	/*
+	 * PUBLIC TRACKING URL
+	 */
+	private static final String TRACKING_BASE_URL = "https://qline.app/track/";
 
-            String businessPhoneNumberId,
+	public void processIncomingMessage(
 
-            String customerPhone,
+			String businessPhoneNumberId,
 
-            String message
+			String customerPhone,
 
-    ) {
+			String message
 
-        try {
+	) {
 
-            message =
-                    message.trim().toLowerCase();
+		try {
 
-            /*
-             * FIND TENANT USING
-             * META PHONE NUMBER ID
-             */
+			message = message.trim().toLowerCase();
 
-            UUID tenantId =
-                    tenantDao.findByWhatsappPhoneId(
-                            businessPhoneNumberId
-                    );
+			/*
+			 * FIND TENANT
+			 */
 
-            if (tenantId == null) {
+			UUID tenantId = tenantDao.findByWhatsappPhoneId(businessPhoneNumberId);
 
-                whatsappService.sendMessage(
+			/*
+			 * INVALID TENANT
+			 */
 
-                        new SendWhatsappRequest(
+			if (tenantId == null) {
 
-                                customerPhone,
+				whatsappService.sendMessage(
 
-                                """
-                                Business not configured.
-                                Please contact support.
-                                """
-                        )
-                );
+						new SendWhatsappRequest(
 
-                return;
-            }
+								customerPhone,
 
-            /*
-             * FIND EXISTING SESSION
-             */
+								"""
+										Business not configured.
+										Please contact support.
+										"""));
 
-            var session =
-                    sessionDao.findByPhone(
-                            customerPhone
-                    );
+				return;
+			}
 
-            /*
-             * START BOOKING FLOW
-             */
+			/*
+			 * GET TENANT NAME
+			 */
 
-            if (
+			String tenantName = tenantDao.getTenantName(tenantId);
 
-                    message.equals("book")
+			/*
+			 * FIND SESSION
+			 */
 
-            ) {
+			var session = sessionDao.findByPhone(customerPhone);
 
-                sessionDao.saveSession(
+			/*
+			 * START BOOKING FLOW
+			 */
 
-                        customerPhone,
+			if (
 
-                        tenantId,
+			message.equals("book")
 
-                        "SERVICE_SELECTION"
-                );
+			) {
 
-                whatsappService.sendMessage(
+				sessionDao.saveSession(
 
-                        new SendWhatsappRequest(
+						customerPhone,
 
-                                customerPhone,
+						tenantId,
 
-                                """
-                                Welcome to QLine
+						"SERVICE_SELECTION");
 
-                                Reply:
+				/*
+				 * SEND INTERACTIVE MENU
+				 */
 
-                                1 - General Consultation
-                                2 - Dental
-                                3 - Vaccination
-                                """
-                        )
-                );
+				whatsappService.sendInteractiveServiceMenu(
 
-                return;
-            }
+						customerPhone,
 
-            /*
-             * HANDLE SERVICE SELECTION
-             */
+						tenantName);
 
-            if (
+				return;
+			}
 
-                    session != null
+			/*
+			 * HANDLE SERVICE SELECTION
+			 */
 
-                    &&
+			if (
 
-                    "SERVICE_SELECTION".equals(
-                            session.currentStep()
-                    )
+			session != null
 
-            ) {
+					&&
 
-                String service =
-                        switch (message) {
+					"SERVICE_SELECTION".equals(session.currentStep())
 
-                            case "1" -> "General";
+			) {
 
-                            case "2" -> "Dental";
+				String service = switch (message.toLowerCase()) {
 
-                            case "3" -> "Vaccination";
+				case "general" -> "General Consultation";
 
-                            default -> null;
-                        };
+				case "dental" -> "Dental";
 
-                /*
-                 * INVALID OPTION
-                 */
+				case "vaccination" -> "Vaccination";
 
-                if (service == null) {
+				default -> null;
+				};
 
-                    whatsappService.sendMessage(
+				/*
+				 * INVALID SERVICE
+				 */
 
-                            new SendWhatsappRequest(
+				if (service == null) {
 
-                                    customerPhone,
+					whatsappService.sendMessage(
 
-                                    """
-                                    Invalid option.
+							new SendWhatsappRequest(
 
-                                    Reply:
-                                    1, 2 or 3.
-                                    """
-                            )
-                    );
+									customerPhone,
 
-                    return;
-                }
+									"""
+											Invalid service selected.
 
-                /*
-                 * GENERATE TOKEN
-                 */
+											Please try again.
+											"""));
 
-                int tokenNumber =
-                        queueService.generateTokenFromWhatsapp(
+					return;
+				}
 
-                                tenantId,
+				/*
+				 * GENERATE TOKEN
+				 */
 
-                                customerPhone
-                        );
+				QueueTokenResponse token = queueService.generateTokenFromWhatsapp(
 
-                /*
-                 * ESTIMATED WAIT TIME
-                 */
+						tenantId,
 
-                int waitingCount =
-                        queueService.getWaitingCount(
-                                tenantId
-                        );
+						customerPhone,
 
-                int estimatedTime =
-                        waitingCount * 3;
+						service);
 
-                /*
-                 * SEND CONFIRMATION
-                 */
+				/*
+				 * WAITING COUNT
+				 */
 
-                whatsappService.sendMessage(
+				int waitingCount = queueService.getWaitingCount(tenantId);
 
-                        new SendWhatsappRequest(
+				/*
+				 * ESTIMATED WAIT
+				 */
 
-                                customerPhone,
+				int estimatedWait = waitingCount * 5;
 
-                                """
-                                Booking Confirmed
+				/*
+				 * TRACKING URL
+				 */
 
-                                Service: %s
-                                Token: A%d
-                                Estimated Wait: %d mins
-                                """
-                                        .formatted(
+				String trackingUrl = TRACKING_BASE_URL + token.getTrackingId();
 
-                                                service,
+				/*
+				 * SEND CONFIRMATION
+				 */
 
-                                                tokenNumber,
+				whatsappService.sendMessage(
 
-                                                estimatedTime
-                                        )
-                        )
-                );
+						new SendWhatsappRequest(
 
-                /*
-                 * CLEAR SESSION
-                 */
+								customerPhone,
 
-                sessionDao.deleteSession(
-                        customerPhone
-                );
-            }
+								"""
+										Booking Confirmed
 
-        } catch (Exception ex) {
+										Clinic: %s
+										Service: %s
+										Token: A%d
 
-            ex.printStackTrace();
+										Queue Ahead: %d
+										Estimated Wait: %d mins
 
-            whatsappService.sendMessage(
+										Track Live Queue:
+										%s
+										""".formatted(
 
-                    new SendWhatsappRequest(
+										tenantName,
 
-                            customerPhone,
+										service,
 
-                            """
-                            Something went wrong.
-                            Please try again.
-                            """
-                    )
-            );
-        }
-    }
+										token.getTokenNumber(),
+
+										waitingCount,
+
+										estimatedWait,
+
+										trackingUrl)));
+
+				/*
+				 * CLEAR SESSION
+				 */
+
+				sessionDao.deleteSession(customerPhone);
+			}
+
+		} catch (Exception ex) {
+
+			ex.printStackTrace();
+
+			whatsappService.sendMessage(
+
+					new SendWhatsappRequest(
+
+							customerPhone,
+
+							"""
+									Something went wrong.
+
+									Please try again later.
+									"""));
+		}
+	}
 }

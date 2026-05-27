@@ -1,96 +1,104 @@
 package com.qline.queue.service;
 
-import com.qline.customer.dao.CustomerDao;
-import com.qline.queue.dao.QueueDao;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
+import com.qline.customer.dao.CustomerDao;
+import com.qline.queue.dao.QueueDao;
+import com.qline.queue.dto.QueueTokenResponse;
+import com.qline.queue.dto.QueueTrackingResponse;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class QueueService {
 
-    private final QueueDao queueDao;
+	private final QueueDao queueDao;
 
-    private final CustomerDao customerDao;
+	private final CustomerDao customerDao;
 
-    /**
-     * Create queue token manually
-     * from receptionist/admin flow
-     */
-    public int createToken(
+	/*
+	 * MANUAL TOKEN CREATION
+	 */
+	public QueueTokenResponse createToken(
 
-            UUID tenantId,
+			UUID tenantId,
 
-            UUID customerId
+			UUID customerId,
 
-    ) {
+			String serviceName
 
-        return queueDao.generateToken(
+	) {
 
-                tenantId,
+		return queueDao.generateToken(
 
-                customerId
-        );
-    }
+				tenantId,
 
-    /**
-     * WhatsApp conversational booking flow
-     */
-    public int generateTokenFromWhatsapp(
+				customerId,
 
-            UUID tenantId,
+				serviceName);
+	}
 
-            String phoneNumber
+	/*
+	 * WHATSAPP TOKEN CREATION
+	 */
+	public QueueTokenResponse generateTokenFromWhatsapp(
 
-    ) {
+			UUID tenantId,
 
-        UUID customerId =
-                customerDao.findOrCreateByPhone(
+			String phoneNumber,
 
-                        tenantId,
+			String serviceName
 
-                        phoneNumber
-                );
+	) {
 
-        return createToken(
+		UUID customerId = customerDao.findOrCreateByPhone(
 
-                tenantId,
+				tenantId,
 
-                customerId
-        );
-    }
+				phoneNumber);
 
-    /**
-     * Waiting queue count
-     */
-    public int getWaitingCount(
-            UUID tenantId
-    ) {
+		return createToken(
 
-        return queueDao.countWaitingTokens(
-                tenantId
-        );
-    }
+				tenantId,
 
-    /**
-     * Call token
-     */
-    public void callToken(
-            UUID queueId
-    ) {
+				customerId,
 
-        queueDao.callToken(queueId);
-    }
+				serviceName);
+	}
 
-    /**
-     * Complete token
-     */
-    public void completeToken(
-            UUID queueId
-    ) {
+	/*
+	 * WAITING COUNT
+	 */
+	public int getWaitingCount(UUID tenantId) {
 
-        queueDao.completeToken(queueId);
-    }
+		return queueDao.countWaitingTokens(tenantId);
+	}
+
+	/*
+	 * CALL TOKEN
+	 */
+	public void callToken(UUID queueId) {
+
+		queueDao.callToken(queueId);
+	}
+
+	/*
+	 * COMPLETE TOKEN
+	 */
+	public void completeToken(UUID queueId) {
+
+		queueDao.completeToken(queueId);
+	}
+	
+	public QueueTrackingResponse getTrackingDetails(
+	        UUID trackingId
+	) {
+
+	    return queueDao.getTrackingDetails(
+	            trackingId
+	    );
+	}
 }
