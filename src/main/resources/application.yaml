@@ -1,13 +1,22 @@
 server:
-  port: ${PORT:8081}
+  port: ${PORT:8080}
 
 spring:
   datasource:
     url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
     username: ${PGUSER}
     password: ${PGPASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+  sql:
+    init:
+      mode: never
 
 whatsapp:
-  access-token: ${WHATSAPP_ACCESS_TOKEN}
-  phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
-  verify-token: ${WHATSAPP_VERIFY_TOKEN}
+  access-token: ${WHATSAPP_ACCESS_TOKEN:dummy}
+  phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:dummy}
+  verify-token: ${WHATSAPP_VERIFY_TOKEN:dummy}
