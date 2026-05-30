@@ -83,6 +83,8 @@ public class WhatsappWebhookController {
 		try {
 
 			System.out.println("WEBHOOK RECEIVED");
+			
+			System.out.println("FULL PAYLOAD = " + payload);
 
 			List<Map<String, Object>> entries =
 
