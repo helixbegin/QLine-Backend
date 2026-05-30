@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.qline.notification.service.ConversationService;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -25,6 +26,19 @@ public class WhatsappWebhookController {
 	private String verifyToken;
 
 	private final ConversationService conversationService;
+	
+	@PostConstruct
+    public void init() {
+
+        System.out.println("=================================");
+        System.out.println("WhatsappWebhookController Loaded");
+        System.out.println("=================================");
+    }
+	
+	@GetMapping("/health")
+	public String health() {
+	    return "Whatsapp Controller Working";
+	}
 
 	/**
 	 * META WEBHOOK VERIFICATION
