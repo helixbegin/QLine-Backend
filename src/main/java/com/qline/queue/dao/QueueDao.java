@@ -1,5 +1,6 @@
 package com.qline.queue.dao;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -17,287 +18,321 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class QueueDao {
 
-    private final NamedParameterJdbcTemplate jdbc;
+	private final NamedParameterJdbcTemplate jdbc;
 
-    /*
-     * GENERATE TOKEN
-     */
-    public QueueTokenResponse generateToken(
+	/*
+	 * GENERATE TOKEN
+	 */
+	public QueueTokenResponse generateToken(
 
-            UUID tenantId,
+			UUID tenantId,
 
-            UUID customerId,
+			UUID customerId,
 
-            String serviceName
+			UUID providerId,
 
-    ) {
+			LocalDate bookingDate
 
-        String countSql = """
+	) {
 
-                SELECT COUNT(*)
-                FROM queue_tokens
-                WHERE tenant_id = :tenantId
-                """;
+		String tokenSql = """
 
-        Integer currentCount = jdbc.queryForObject(
+				SELECT COALESCE(MAX(token_number),0)
 
-                countSql,
+				FROM queue_tokens
 
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId),
+				WHERE provider_id = :providerId
 
-                Integer.class
-        );
+				AND booking_date = :bookingDate
 
-        int nextToken =
-                (currentCount == null ? 0 : currentCount) + 1;
+				""";
 
-        UUID queueId = UUID.randomUUID();
+		Integer maxToken = jdbc.queryForObject(
 
-        UUID trackingId = UUID.randomUUID();
+				tokenSql,
 
-        String insertSql = """
+				new MapSqlParameterSource()
 
-                INSERT INTO queue_tokens (
+						.addValue("providerId", providerId)
 
-                    id,
-                    tenant_id,
-                    customer_id,
-                    token_number,
-                    status,
-                    service_name,
-                    tracking_id,
-                    created_at
+						.addValue("bookingDate", bookingDate),
 
-                )
+				Integer.class);
 
-                VALUES (
+		int nextToken = (maxToken == null ? 1 : maxToken + 1);
 
-                    :id,
-                    :tenantId,
-                    :customerId,
-                    :tokenNumber,
-                    'WAITING',
-                    :serviceName,
-                    :trackingId,
-                    CURRENT_TIMESTAMP
+		UUID queueId = UUID.randomUUID();
 
-                )
-                """;
+		UUID trackingId = UUID.randomUUID();
 
-        MapSqlParameterSource params =
-                new MapSqlParameterSource()
+		String insertSql = """
 
-                        .addValue("id", queueId)
+				INSERT INTO queue_tokens (
 
-                        .addValue("tenantId", tenantId)
+				    id,
+				    tenant_id,
+				    customer_id,
+				    provider_id,
+				    booking_date,
+				    token_number,
+				    status,
+				    tracking_id,
+				    created_at
 
-                        .addValue("customerId", customerId)
+				)
 
-                        .addValue("tokenNumber", nextToken)
+				VALUES (
 
-                        .addValue("serviceName", serviceName)
+				    :id,
+				    :tenantId,
+				    :customerId,
+				    :providerId,
+				    :bookingDate,
+				    :tokenNumber,
+				    'WAITING',
+				    :trackingId,
+				    CURRENT_TIMESTAMP
 
-                        .addValue("trackingId", trackingId);
+				)
 
-        jdbc.update(insertSql, params);
+				""";
 
-        return new QueueTokenResponse(
+		jdbc.update(
 
-                queueId,
+				insertSql,
 
-                nextToken,
+				new MapSqlParameterSource()
 
-                "WAITING",
+						.addValue("id", queueId)
 
-                null,
+						.addValue("tenantId", tenantId)
 
-                LocalDateTime.now(),
+						.addValue("customerId", customerId)
 
-                trackingId
-        );
-    }
+						.addValue("providerId", providerId)
 
-    /*
-     * WAITING COUNT
-     */
-    public int countWaitingTokens(UUID tenantId) {
+						.addValue("bookingDate", bookingDate)
 
-        String sql = """
+						.addValue("tokenNumber", nextToken)
 
-                SELECT COUNT(*)
+						.addValue("trackingId", trackingId));
 
-                FROM queue_tokens
+		return new QueueTokenResponse(
 
-                WHERE tenant_id = :tenantId
+				queueId,
 
-                AND status = 'WAITING'
-                """;
+				nextToken,
 
-        Integer count = jdbc.queryForObject(
+				"WAITING",
 
-                sql,
+				null,
 
-                new MapSqlParameterSource()
-                        .addValue("tenantId", tenantId),
+				LocalDateTime.now(),
 
-                Integer.class
-        );
+				trackingId);
+	}
 
-        return count == null ? 0 : count;
-    }
+	/*
+	 * WAITING COUNT
+	 */
+	public int countWaitingTokens(
 
-    /*
-     * CALL TOKEN
-     */
-    public void callToken(UUID queueId) {
+			UUID providerId,
 
-        String sql = """
+			LocalDate bookingDate
 
-                UPDATE queue_tokens
+	) {
 
-                SET
-                    status = 'CALLED',
-                    called_at = CURRENT_TIMESTAMP
+		String sql = """
 
-                WHERE id = :queueId
-                """;
+				SELECT COUNT(*)
 
-        jdbc.update(
+				FROM queue_tokens
 
-                sql,
+				WHERE provider_id = :providerId
 
-                new MapSqlParameterSource()
-                        .addValue("queueId", queueId)
-        );
-    }
+				AND booking_date = :bookingDate
 
-    /*
-     * COMPLETE TOKEN
-     */
-    public void completeToken(UUID queueId) {
+				AND status = 'WAITING'
 
-        String sql = """
+				""";
 
-                UPDATE queue_tokens
+		Integer count = jdbc.queryForObject(
 
-                SET
-                    status = 'COMPLETED',
-                    completed_at = CURRENT_TIMESTAMP
+				sql,
 
-                WHERE id = :queueId
-                """;
+				new MapSqlParameterSource()
 
-        jdbc.update(
+						.addValue("providerId", providerId)
 
-                sql,
+						.addValue("bookingDate", bookingDate),
 
-                new MapSqlParameterSource()
-                        .addValue("queueId", queueId)
-        );
-    }
+				Integer.class);
 
-    /*
-     * LIVE TRACKING DETAILS
-     */
-    public QueueTrackingResponse getTrackingDetails(
+		return count == null ? 0 : count;
+	}
 
-            UUID trackingId
+	/*
+	 * CALL TOKEN
+	 */
+	public void callToken(
 
-    ) {
+			UUID queueId
 
-        String sql = """
+	) {
 
-                SELECT
+		String sql = """
 
-                    q1.token_number,
+				UPDATE queue_tokens
 
-                    q1.status,
+				SET
 
-                    (
+				    status = 'CALLED',
 
-                        SELECT COUNT(*)
+				    called_at = CURRENT_TIMESTAMP
 
-                        FROM queue_tokens q2
+				WHERE id = :queueId
 
-                        WHERE q2.tenant_id = q1.tenant_id
+				""";
 
-                        AND q2.status = 'WAITING'
+		jdbc.update(
 
-                        AND q2.token_number < q1.token_number
+				sql,
 
-                    ) AS people_ahead,
+				new MapSqlParameterSource()
 
-                    (
+						.addValue("queueId", queueId));
+	}
 
-                        SELECT token_number
+	/*
+	 * COMPLETE TOKEN
+	 */
+	public void completeToken(
 
-                        FROM queue_tokens q3
+			UUID queueId
 
-                        WHERE q3.tenant_id = q1.tenant_id
+	) {
 
-                        AND q3.status = 'CALLED'
+		String sql = """
 
-                        ORDER BY q3.called_at DESC
+				UPDATE queue_tokens
 
-                        LIMIT 1
+				SET
 
-                    ) AS current_serving_token
+				    status = 'COMPLETED',
 
-                FROM queue_tokens q1
+				    completed_at = CURRENT_TIMESTAMP
 
-                WHERE q1.tracking_id = :trackingId
-                """;
+				WHERE id = :queueId
 
-        List<QueueTrackingResponse> list = jdbc.query(
+				""";
 
-                sql,
+		jdbc.update(
 
-                new MapSqlParameterSource()
-                        .addValue("trackingId", trackingId),
+				sql,
 
-                (rs, rowNum) -> {
+				new MapSqlParameterSource()
 
-                    int peopleAhead =
-                            rs.getInt("people_ahead");
+						.addValue("queueId", queueId));
+	}
 
-                    int estimatedWait =
-                            peopleAhead * 5;
+	/*
+	 * TRACKING
+	 */
+	public QueueTrackingResponse getTrackingDetails(
 
-                    String currentServingToken =
-                            rs.getString("current_serving_token");
+			UUID trackingId
 
-                    if (currentServingToken == null) {
+	) {
 
-                        currentServingToken = "No Active Token";
-                    }
+		String sql = """
 
-                    return new QueueTrackingResponse(
+				SELECT
 
-                            rs.getInt("token_number"),
+				    q1.token_number,
 
-                            rs.getString("status"),
+				    q1.status,
 
-                            peopleAhead,
+				    (
 
-                            estimatedWait,
+				        SELECT COUNT(*)
 
-                            currentServingToken
-                    );
-                }
-        );
+				        FROM queue_tokens q2
 
-        /*
-         * SAFE CHECK
-         */
+				        WHERE q2.provider_id = q1.provider_id
 
-        if (list.isEmpty()) {
+				        AND q2.booking_date = q1.booking_date
 
-            throw new RuntimeException(
-                    "Tracking ID not found"
-            );
-        }
+				        AND q2.status = 'WAITING'
 
-        return list.get(0);
-    }
+				        AND q2.token_number < q1.token_number
+
+				    ) AS people_ahead,
+
+				    (
+
+				        SELECT token_number
+
+				        FROM queue_tokens q3
+
+				        WHERE q3.provider_id = q1.provider_id
+
+				        AND q3.booking_date = q1.booking_date
+
+				        AND q3.status = 'CALLED'
+
+				        ORDER BY q3.called_at DESC
+
+				        LIMIT 1
+
+				    ) AS current_serving_token
+
+				FROM queue_tokens q1
+
+				WHERE q1.tracking_id = :trackingId
+
+				""";
+
+		List<QueueTrackingResponse> result = jdbc.query(
+
+				sql,
+
+				new MapSqlParameterSource()
+
+						.addValue("trackingId", trackingId),
+
+				(rs, rowNum) -> {
+
+					int peopleAhead = rs.getInt("people_ahead");
+
+					int estimatedWait = peopleAhead * 5;
+
+					String currentServingToken = rs.getString("current_serving_token");
+
+					if (currentServingToken == null) {
+
+						currentServingToken = "No Active Token";
+					}
+
+					return new QueueTrackingResponse(
+
+							rs.getInt("token_number"),
+
+							rs.getString("status"),
+
+							peopleAhead,
+
+							estimatedWait,
+
+							currentServingToken);
+				});
+
+		if (result.isEmpty()) {
+
+			throw new RuntimeException("Tracking ID not found");
+		}
+
+		return result.get(0);
+	}
+
 }

@@ -1,6 +1,5 @@
-package com.qline.queue.model;
+package com.qline.provider.model;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -13,26 +12,15 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class QueueToken {
+public class ProviderType {
 
 	private UUID id;
 
 	private UUID tenantId;
 
-	private UUID customerId;
+	private String typeName;
 
-	private UUID providerId;
-
-	private LocalDate bookingDate;
-
-	private Integer tokenNumber;
-
-	private String status;
-
-	private String counterName;
-
-	private UUID publicTrackingId;
+	private Boolean active;
 
 	private LocalDateTime createdAt;
-
 }
