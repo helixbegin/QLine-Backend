@@ -1,5 +1,6 @@
 package com.qline.notification.model;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,7 +12,11 @@ public record WhatsappSession(
 
 		String currentStep,
 
-		String selectedService,
+		UUID selectedProviderId,
+
+		LocalDate selectedVisitDate,
+
+		String bookingType,
 
 		LocalDateTime updatedAt
 

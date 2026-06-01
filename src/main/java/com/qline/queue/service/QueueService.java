@@ -1,5 +1,6 @@
 package com.qline.queue.service;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -28,7 +29,9 @@ public class QueueService {
 
 			UUID customerId,
 
-			String serviceName
+			UUID providerId,
+
+			LocalDate bookingDate
 
 	) {
 
@@ -38,7 +41,9 @@ public class QueueService {
 
 				customerId,
 
-				serviceName);
+				providerId,
+
+				bookingDate);
 	}
 
 	/*
@@ -50,7 +55,9 @@ public class QueueService {
 
 			String phoneNumber,
 
-			String serviceName
+			UUID providerId,
+
+			LocalDate bookingDate
 
 	) {
 
@@ -66,21 +73,37 @@ public class QueueService {
 
 				customerId,
 
-				serviceName);
+				providerId,
+
+				bookingDate);
 	}
 
 	/*
-	 * WAITING COUNT
+	 * WAITING COUNT FOR PROVIDER
 	 */
-	public int getWaitingCount(UUID tenantId) {
+	public int getWaitingCount(
 
-		return queueDao.countWaitingTokens(tenantId);
+			UUID providerId,
+
+			LocalDate bookingDate
+
+	) {
+
+		return queueDao.countWaitingTokens(
+
+				providerId,
+
+				bookingDate);
 	}
 
 	/*
 	 * CALL TOKEN
 	 */
-	public void callToken(UUID queueId) {
+	public void callToken(
+
+			UUID queueId
+
+	) {
 
 		queueDao.callToken(queueId);
 	}
@@ -88,17 +111,25 @@ public class QueueService {
 	/*
 	 * COMPLETE TOKEN
 	 */
-	public void completeToken(UUID queueId) {
+	public void completeToken(
+
+			UUID queueId
+
+	) {
 
 		queueDao.completeToken(queueId);
 	}
-	
+
+	/*
+	 * TRACK TOKEN
+	 */
 	public QueueTrackingResponse getTrackingDetails(
-	        UUID trackingId
+
+			UUID trackingId
+
 	) {
 
-	    return queueDao.getTrackingDetails(
-	            trackingId
-	    );
+		return queueDao.getTrackingDetails(trackingId);
 	}
+
 }

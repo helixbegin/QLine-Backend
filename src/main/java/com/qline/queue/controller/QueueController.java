@@ -1,5 +1,6 @@
 package com.qline.queue.controller;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,11 +41,9 @@ public class QueueController {
 
 		UUID customerId = UUID.fromString(request.get("customerId"));
 
-		String serviceName = request.get("serviceName");
+		UUID providerId = UUID.fromString(request.get("providerId"));
 
-		/*
-		 * CREATE TOKEN
-		 */
+		LocalDate bookingDate = LocalDate.parse(request.get("bookingDate"));
 
 		QueueTokenResponse token = queueService.createToken(
 
@@ -52,11 +51,9 @@ public class QueueController {
 
 				customerId,
 
-				serviceName);
+				providerId,
 
-		/*
-		 * TRACKING URL
-		 */
+				bookingDate);
 
 		String trackingUrl = "http://localhost:3000/track/" + token.getTrackingId();
 
@@ -110,14 +107,20 @@ public class QueueController {
 	/**
 	 * WAITING COUNT
 	 */
-	@GetMapping("/waiting-count/{tenantId}")
+	@GetMapping("/waiting-count/{providerId}/{bookingDate}")
 	public Map<String, Integer> getWaitingCount(
 
-			@PathVariable UUID tenantId
+			@PathVariable UUID providerId,
+
+			@PathVariable String bookingDate
 
 	) {
 
-		int count = queueService.getWaitingCount(tenantId);
+		int count = queueService.getWaitingCount(
+
+				providerId,
+
+				LocalDate.parse(bookingDate));
 
 		return Map.of(
 
@@ -136,4 +139,5 @@ public class QueueController {
 
 		return queueService.getTrackingDetails(trackingId);
 	}
+
 }

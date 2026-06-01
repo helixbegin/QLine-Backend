@@ -1,120 +1,297 @@
 package com.qline.notification.dao;
 
-import com.qline.notification.model.WhatsappSession;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDate;
+import java.util.UUID;
+
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.UUID;
+import com.qline.notification.model.WhatsappSession;
+
+import lombok.RequiredArgsConstructor;
 
 @Repository
 @RequiredArgsConstructor
 public class WhatsappSessionDao {
 
-	private final NamedParameterJdbcTemplate jdbc;
+    private final NamedParameterJdbcTemplate jdbc;
 
-	public void saveSession(
+    /*
+     * CREATE / UPDATE SESSION
+     */
+    public void saveSession(
 
-			String phoneNumber,
+            String phoneNumber,
 
-			UUID tenantId,
+            UUID tenantId,
 
-			String step
+            String step
 
-	) {
+    ) {
 
-		String sql = """
+        String sql = """
 
-				INSERT INTO whatsapp_sessions (
+                INSERT INTO whatsapp_sessions (
 
-				    phone_number,
-				    tenant_id,
-				    current_step
+                    phone_number,
+                    tenant_id,
+                    current_step
 
-				)
+                )
 
-				VALUES (
+                VALUES (
 
-				    :phoneNumber,
-				    :tenantId,
-				    :step
+                    :phoneNumber,
+                    :tenantId,
+                    :step
 
-				)
+                )
 
-				ON CONFLICT (phone_number)
+                ON CONFLICT (phone_number)
 
-				DO UPDATE SET
+                DO UPDATE SET
 
-				    current_step = :step,
-				    updated_at = CURRENT_TIMESTAMP
+                    current_step = :step,
+                    updated_at = CURRENT_TIMESTAMP
 
-				""";
+                """;
 
-		MapSqlParameterSource params = new MapSqlParameterSource()
+        MapSqlParameterSource params =
+                new MapSqlParameterSource()
 
-				.addValue("phoneNumber", phoneNumber)
+                        .addValue(
+                                "phoneNumber",
+                                phoneNumber)
 
-				.addValue("tenantId", tenantId)
+                        .addValue(
+                                "tenantId",
+                                tenantId)
 
-				.addValue("step", step);
+                        .addValue(
+                                "step",
+                                step);
 
-		jdbc.update(sql, params);
-	}
+        jdbc.update(sql, params);
+    }
 
-	public WhatsappSession findByPhone(String phoneNumber) {
+    /*
+     * SAVE VISIT DATE
+     */
+    public void updateVisitDate(
 
-		String sql = """
+            String phoneNumber,
 
-				SELECT *
+            LocalDate visitDate,
 
-				FROM whatsapp_sessions
+            String nextStep
 
-				WHERE phone_number = :phoneNumber
+    ) {
 
-				""";
+        String sql = """
 
-		return jdbc.query(
+                UPDATE whatsapp_sessions
 
-				sql,
+                SET
 
-				new MapSqlParameterSource().addValue("phoneNumber", phoneNumber),
+                    selected_visit_date = :visitDate,
 
-				rs -> {
+                    current_step = :nextStep,
 
-					if (rs.next()) {
+                    updated_at = CURRENT_TIMESTAMP
 
-						return new WhatsappSession(
+                WHERE phone_number = :phoneNumber
 
-								rs.getString("phone_number"),
+                """;
 
-								UUID.fromString(rs.getString("tenant_id")),
+        jdbc.update(
 
-								rs.getString("current_step"),
+                sql,
 
-								rs.getString("selected_service"),
+                new MapSqlParameterSource()
 
-								rs.getTimestamp("updated_at").toLocalDateTime());
-					}
+                        .addValue(
+                                "phoneNumber",
+                                phoneNumber)
 
-					return null;
-				});
-	}
+                        .addValue(
+                                "visitDate",
+                                visitDate)
 
-	public void deleteSession(String phoneNumber) {
+                        .addValue(
+                                "nextStep",
+                                nextStep));
+    }
 
-		String sql = """
+    /*
+     * SAVE PROVIDER
+     */
+    public void updateProvider(
 
-				DELETE FROM whatsapp_sessions
+            String phoneNumber,
 
-				WHERE phone_number = :phoneNumber
+            UUID providerId
 
-				""";
+    ) {
 
-		jdbc.update(
+        String sql = """
 
-				sql,
+                UPDATE whatsapp_sessions
 
-				new MapSqlParameterSource().addValue("phoneNumber", phoneNumber));
-	}
+                SET
+
+                    selected_provider_id = :providerId,
+
+                    updated_at = CURRENT_TIMESTAMP
+
+                WHERE phone_number = :phoneNumber
+
+                """;
+
+        jdbc.update(
+
+                sql,
+
+                new MapSqlParameterSource()
+
+                        .addValue(
+                                "phoneNumber",
+                                phoneNumber)
+
+                        .addValue(
+                                "providerId",
+                                providerId));
+    }
+
+    /*
+     * SAVE BOOKING TYPE
+     */
+    public void updateBookingType(
+
+            String phoneNumber,
+
+            String bookingType
+
+    ) {
+
+        String sql = """
+
+                UPDATE whatsapp_sessions
+
+                SET
+
+                    booking_type = :bookingType,
+
+                    updated_at = CURRENT_TIMESTAMP
+
+                WHERE phone_number = :phoneNumber
+
+                """;
+
+        jdbc.update(
+
+                sql,
+
+                new MapSqlParameterSource()
+
+                        .addValue(
+                                "phoneNumber",
+                                phoneNumber)
+
+                        .addValue(
+                                "bookingType",
+                                bookingType));
+    }
+
+    /*
+     * FIND SESSION
+     */
+    public WhatsappSession findByPhone(
+
+            String phoneNumber
+
+    ) {
+
+        String sql = """
+
+                SELECT *
+
+                FROM whatsapp_sessions
+
+                WHERE phone_number = :phoneNumber
+
+                """;
+
+        return jdbc.query(
+
+                sql,
+
+                new MapSqlParameterSource()
+                        .addValue(
+                                "phoneNumber",
+                                phoneNumber),
+
+                rs -> {
+
+                    if (rs.next()) {
+
+                        return new WhatsappSession(
+
+                                rs.getString(
+                                        "phone_number"),
+
+                                rs.getObject(
+                                        "tenant_id",
+                                        UUID.class),
+
+                                rs.getString(
+                                        "current_step"),
+
+                                rs.getObject(
+                                        "selected_provider_id",
+                                        UUID.class),
+
+                                rs.getObject(
+                                        "selected_visit_date",
+                                        LocalDate.class),
+
+                                rs.getString(
+                                        "booking_type"),
+
+                                rs.getTimestamp(
+                                        "updated_at")
+                                        .toLocalDateTime());
+                    }
+
+                    return null;
+                });
+    }
+
+    /*
+     * DELETE SESSION
+     */
+    public void deleteSession(
+
+            String phoneNumber
+
+    ) {
+
+        String sql = """
+
+                DELETE FROM whatsapp_sessions
+
+                WHERE phone_number = :phoneNumber
+
+                """;
+
+        jdbc.update(
+
+                sql,
+
+                new MapSqlParameterSource()
+
+                        .addValue(
+                                "phoneNumber",
+                                phoneNumber));
+    }
 }
