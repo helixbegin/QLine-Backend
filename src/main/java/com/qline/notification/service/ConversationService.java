@@ -22,13 +22,9 @@ import lombok.RequiredArgsConstructor;
 public class ConversationService {
 
     private final WhatsappSessionDao sessionDao;
-
     private final WhatsappService whatsappService;
-
     private final QueueService queueService;
-
     private final TenantDao tenantDao;
-
     private final ProviderDao providerDao;
 
     private static final String TRACKING_BASE_URL =
@@ -60,10 +56,7 @@ public class ConversationService {
 
                                 customerPhone,
 
-                                """
-                                Business not configured.
-                                Please contact support.
-                                """));
+                                "Business not configured."));
 
                 return;
             }
@@ -130,31 +123,17 @@ public class ConversationService {
 
                                     customerPhone,
 
-                                    """
-                                    Invalid option.
-
-                                    Reply:
-
-                                    1 - Today
-
-                                    2 - Tomorrow
-                                    """));
+                                    "Invalid option. Reply 1 or 2"));
 
                     return;
                 }
-
-                DayOfWeek dayOfWeek =
-                        bookingDate.getDayOfWeek();
-
-                String dayName =
-                        dayOfWeek.name();
 
                 List<ProviderDto> providers =
                         providerDao.findAvailableProviders(
 
                                 tenantId,
 
-                                dayName);
+                                bookingDate.getDayOfWeek().name());
 
                 if (providers.isEmpty()) {
 
@@ -164,10 +143,7 @@ public class ConversationService {
 
                                     customerPhone,
 
-                                    """
-                                    No providers available
-                                    for selected date.
-                                    """));
+                                    "No providers available."));
 
                     return;
                 }
@@ -180,47 +156,28 @@ public class ConversationService {
 
                         "PROVIDER_SELECTION");
 
-                StringBuilder providerText =
+                StringBuilder text =
                         new StringBuilder();
 
-                providerText.append(
-                        "Available Providers\n\n");
-
-                int index = 1;
+                int i = 1;
 
                 for (ProviderDto provider : providers) {
 
-                    providerText.append(index)
-
+                    text.append(i++)
                             .append(". ")
-
                             .append(provider.getProviderName())
-
-                            .append("\n")
-
+                            .append(" (")
                             .append(provider.getProviderType())
-
-                            .append("\n")
-
-                            .append(provider.getStartTime())
-
-                            .append(" - ")
-
-                            .append(provider.getEndTime())
-
-                            .append("\n\n");
-
-                    index++;
+                            .append(")\n");
                 }
 
-                providerText.append(
-                        "Reply with provider number");
+                text.append("\nReply with provider number");
 
                 whatsappService.sendProviderMenu(
 
                         customerPhone,
 
-                        providerText.toString());
+                        text.toString());
 
                 return;
             }
@@ -242,88 +199,42 @@ public class ConversationService {
                 LocalDate bookingDate =
                         session.visitDate();
 
-                DayOfWeek dayOfWeek =
-                        bookingDate.getDayOfWeek();
-
                 List<ProviderDto> providers =
                         providerDao.findAvailableProviders(
 
                                 tenantId,
 
-                                dayOfWeek.name());
+                                bookingDate.getDayOfWeek().name());
 
-                int selectedIndex;
+                int selectedIndex =
+                        Integer.parseInt(message);
 
-                try {
-
-                    selectedIndex =
-                            Integer.parseInt(message);
-
-                } catch (Exception ex) {
-
-                    whatsappService.sendMessage(
-
-                            new SendWhatsappRequest(
-
-                                    customerPhone,
-
-                                    "Invalid provider selection."));
-
-                    return;
-                }
-
-                if (
-
-                selectedIndex < 1
-
-                        ||
-
-                        selectedIndex > providers.size()
-
-                ) {
-
-                    whatsappService.sendMessage(
-
-                            new SendWhatsappRequest(
-
-                                    customerPhone,
-
-                                    "Invalid provider selection."));
-
-                    return;
-                }
-
-                ProviderDto selectedProvider =
+                ProviderDto provider =
                         providers.get(selectedIndex - 1);
 
                 sessionDao.updateProvider(
 
                         customerPhone,
 
-                        selectedProvider.getProviderId());
+                        provider.getProviderId());
 
                 QueueTokenResponse token =
-
                         queueService.generateTokenFromWhatsapp(
 
                                 tenantId,
 
                                 customerPhone,
 
-                                selectedProvider.getProviderId(),
+                                provider.getProviderId(),
 
                                 bookingDate);
 
                 int waitingCount =
-
                         queueService.getWaitingCount(
 
-                                selectedProvider.getProviderId(),
+                                provider.getProviderId(),
 
                                 bookingDate);
-
-                int estimatedWait =
-                        waitingCount * 5;
 
                 String trackingUrl =
                         TRACKING_BASE_URL
@@ -333,15 +244,15 @@ public class ConversationService {
 
                         customerPhone,
 
-                        selectedProvider.getProviderName(),
+                        provider.getProviderName(),
 
-                        selectedProvider.getProviderType(),
+                        provider.getProviderType(),
 
                         token.getTokenNumber(),
 
                         waitingCount,
 
-                        estimatedWait,
+                        waitingCount * 5,
 
                         trackingUrl);
 

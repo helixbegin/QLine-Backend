@@ -6,21 +6,21 @@ import java.util.UUID;
 
 public record WhatsappSession(
 
-		String phoneNumber,
+        String phoneNumber,
 
-		UUID tenantId,
+        UUID tenantId,
 
-		String stepName,
+        String stepName,
 
-		String serviceName,
+        String serviceName,
 
-		UUID providerId,
+        UUID providerId,
 
-		LocalDate visitDate,
+        LocalDate visitDate,
 
-		String bookingMode,
+        String bookingMode,
 
-		LocalDateTime updatedAt
+        LocalDateTime updatedAt
 
 ) {
 }

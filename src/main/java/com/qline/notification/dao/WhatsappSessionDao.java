@@ -15,248 +15,254 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class WhatsappSessionDao {
 
-	private final NamedParameterJdbcTemplate jdbc;
+    private final NamedParameterJdbcTemplate jdbc;
 
-	/*
-	 * CREATE / UPDATE SESSION
-	 */
-	public void saveSession(
+    /*
+     * CREATE / UPDATE SESSION
+     */
+    public void saveSession(
 
-			String phoneNumber,
+            String phoneNumber,
 
-			UUID tenantId,
+            UUID tenantId,
 
-			String step
+            String step
 
-	) {
+    ) {
 
-		String sql = """
+        String sql = """
 
-				INSERT INTO whatsapp_sessions (
+                INSERT INTO whatsapp_sessions (
 
-				    phone_number,
-				    tenant_id,
-				    step_name
+                    phone_number,
+                    tenant_id,
+                    step_name
 
-				)
+                )
 
-				VALUES (
+                VALUES (
 
-				    :phoneNumber,
-				    :tenantId,
-				    :step
+                    :phoneNumber,
+                    :tenantId,
+                    :step
 
-				)
+                )
 
-				ON CONFLICT (phone_number)
+                ON CONFLICT (phone_number)
 
-				DO UPDATE SET
+                DO UPDATE SET
 
-				    step_name = :step,
-				    updated_at = CURRENT_TIMESTAMP
+                    step_name = EXCLUDED.step_name,
+                    updated_at = CURRENT_TIMESTAMP
 
-				""";
+                """;
 
-		MapSqlParameterSource params = new MapSqlParameterSource()
+        jdbc.update(
 
-				.addValue("phoneNumber", phoneNumber)
+                sql,
 
-				.addValue("tenantId", tenantId)
+                new MapSqlParameterSource()
 
-				.addValue("step", step);
+                        .addValue("phoneNumber", phoneNumber)
 
-		jdbc.update(sql, params);
-	}
+                        .addValue("tenantId", tenantId)
 
-	/*
-	 * SAVE VISIT DATE
-	 */
-	public void updateVisitDate(
+                        .addValue("step", step));
+    }
 
-			String phoneNumber,
+    /*
+     * SAVE VISIT DATE
+     */
+    public void updateVisitDate(
 
-			LocalDate visitDate,
+            String phoneNumber,
 
-			String nextStep
+            LocalDate visitDate,
 
-	) {
+            String nextStep
 
-		String sql = """
+    ) {
 
-				UPDATE whatsapp_sessions
+        String sql = """
 
-				SET
+                UPDATE whatsapp_sessions
 
-				    visit_date = :visitDate,
+                SET
 
-				    step_name = :nextStep,
+                    visit_date = :visitDate,
 
-				    updated_at = CURRENT_TIMESTAMP
+                    step_name = :nextStep,
 
-				WHERE phone_number = :phoneNumber
+                    updated_at = CURRENT_TIMESTAMP
 
-				""";
+                WHERE phone_number = :phoneNumber
 
-		jdbc.update(
+                """;
 
-				sql,
+        jdbc.update(
 
-				new MapSqlParameterSource()
+                sql,
 
-						.addValue("phoneNumber", phoneNumber)
+                new MapSqlParameterSource()
 
-						.addValue("visitDate", visitDate)
+                        .addValue("phoneNumber", phoneNumber)
 
-						.addValue("nextStep", nextStep));
-	}
+                        .addValue("visitDate", visitDate)
 
-	/*
-	 * SAVE PROVIDER
-	 */
-	public void updateProvider(
+                        .addValue("nextStep", nextStep));
+    }
 
-			String phoneNumber,
+    /*
+     * SAVE PROVIDER
+     */
+    public void updateProvider(
 
-			UUID providerId
+            String phoneNumber,
 
-	) {
+            UUID providerId
 
-		String sql = """
+    ) {
 
-				UPDATE whatsapp_sessions
+        String sql = """
 
-				SET
+                UPDATE whatsapp_sessions
 
-				    provider_id = :providerId,
+                SET
 
-				    updated_at = CURRENT_TIMESTAMP
+                    provider_id = :providerId,
 
-				WHERE phone_number = :phoneNumber
+                    updated_at = CURRENT_TIMESTAMP
 
-				""";
+                WHERE phone_number = :phoneNumber
 
-		jdbc.update(
+                """;
 
-				sql,
+        jdbc.update(
 
-				new MapSqlParameterSource()
+                sql,
 
-						.addValue("phoneNumber", phoneNumber)
+                new MapSqlParameterSource()
 
-						.addValue("providerId", providerId));
-	}
+                        .addValue("phoneNumber", phoneNumber)
 
-	/*
-	 * SAVE BOOKING MODE
-	 */
-	public void updateBookingMode(
+                        .addValue("providerId", providerId));
+    }
 
-			String phoneNumber,
+    /*
+     * SAVE BOOKING MODE
+     */
+    public void updateBookingMode(
 
-			String bookingMode
+            String phoneNumber,
 
-	) {
+            String bookingMode
 
-		String sql = """
+    ) {
 
-				UPDATE whatsapp_sessions
+        String sql = """
 
-				SET
+                UPDATE whatsapp_sessions
 
-				    booking_mode = :bookingMode,
+                SET
 
-				    updated_at = CURRENT_TIMESTAMP
+                    booking_mode = :bookingMode,
 
-				WHERE phone_number = :phoneNumber
+                    updated_at = CURRENT_TIMESTAMP
 
-				""";
+                WHERE phone_number = :phoneNumber
 
-		jdbc.update(
+                """;
 
-				sql,
+        jdbc.update(
 
-				new MapSqlParameterSource()
+                sql,
 
-						.addValue("phoneNumber", phoneNumber)
+                new MapSqlParameterSource()
 
-						.addValue("bookingMode", bookingMode));
-	}
+                        .addValue("phoneNumber", phoneNumber)
 
-	/*
-	 * FIND SESSION
-	 */
-	public WhatsappSession findByPhone(
+                        .addValue("bookingMode", bookingMode));
+    }
 
-			String phoneNumber
+    /*
+     * FIND SESSION
+     */
+    public WhatsappSession findByPhone(
 
-	) {
+            String phoneNumber
 
-		String sql = """
+    ) {
 
-				SELECT *
+        String sql = """
 
-				FROM whatsapp_sessions
+                SELECT *
 
-				WHERE phone_number = :phoneNumber
+                FROM whatsapp_sessions
 
-				""";
+                WHERE phone_number = :phoneNumber
 
-		return jdbc.query(
+                """;
 
-				sql,
+        return jdbc.query(
 
-				new MapSqlParameterSource().addValue("phoneNumber", phoneNumber),
+                sql,
 
-				rs -> {
+                new MapSqlParameterSource()
 
-					if (rs.next()) {
+                        .addValue("phoneNumber", phoneNumber),
 
-						return new WhatsappSession(
+                rs -> {
 
-								rs.getString("phone_number"),
+                    if (rs.next()) {
 
-								rs.getObject("tenant_id", UUID.class),
+                        return new WhatsappSession(
 
-								rs.getString("step_name"),
+                                rs.getString("phone_number"),
 
-								rs.getString("service_name"),
+                                rs.getObject("tenant_id", UUID.class),
 
-								rs.getObject("provider_id", UUID.class),
+                                rs.getString("step_name"),
 
-								rs.getObject("visit_date", LocalDate.class),
+                                rs.getString("service_name"),
 
-								rs.getString("booking_mode"),
+                                rs.getObject("provider_id", UUID.class),
 
-								rs.getTimestamp("updated_at").toLocalDateTime());
-					}
+                                rs.getObject("visit_date", LocalDate.class),
 
-					return null;
-				});
-	}
+                                rs.getString("booking_mode"),
 
-	/*
-	 * DELETE SESSION
-	 */
-	public void deleteSession(
+                                rs.getTimestamp("updated_at") == null
+                                        ? null
+                                        : rs.getTimestamp("updated_at").toLocalDateTime());
+                    }
 
-			String phoneNumber
+                    return null;
+                });
+    }
 
-	) {
+    /*
+     * DELETE SESSION
+     */
+    public void deleteSession(
 
-		String sql = """
+            String phoneNumber
 
-				DELETE FROM whatsapp_sessions
+    ) {
 
-				WHERE phone_number = :phoneNumber
+        String sql = """
 
-				""";
+                DELETE FROM whatsapp_sessions
 
-		jdbc.update(
+                WHERE phone_number = :phoneNumber
 
-				sql,
+                """;
 
-				new MapSqlParameterSource()
+        jdbc.update(
 
-						.addValue("phoneNumber", phoneNumber));
-	}
+                sql,
+
+                new MapSqlParameterSource()
+
+                        .addValue("phoneNumber", phoneNumber));
+    }
 }
