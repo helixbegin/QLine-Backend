@@ -11,7 +11,6 @@ import com.qline.notification.dao.WhatsappSessionDao;
 import com.qline.notification.dto.SendWhatsappRequest;
 import com.qline.provider.dao.ProviderDao;
 import com.qline.provider.dto.ProviderDto;
-import com.qline.provider.model.Provider;
 import com.qline.queue.dto.QueueTokenResponse;
 import com.qline.queue.service.QueueService;
 import com.qline.tenant.dao.TenantDao;
@@ -22,318 +21,342 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ConversationService {
 
-	private final WhatsappSessionDao sessionDao;
+    private final WhatsappSessionDao sessionDao;
 
-	private final WhatsappService whatsappService;
+    private final WhatsappService whatsappService;
 
-	private final QueueService queueService;
+    private final QueueService queueService;
 
-	private final TenantDao tenantDao;
+    private final TenantDao tenantDao;
 
-	private final ProviderDao providerDao;
+    private final ProviderDao providerDao;
 
-	private static final String TRACKING_BASE_URL = "https://qline.app/track/";
+    private static final String TRACKING_BASE_URL =
+            "https://qline.app/track/";
 
-	public void processIncomingMessage(
+    public void processIncomingMessage(
 
-			String businessPhoneNumberId,
+            String businessPhoneNumberId,
 
-			String customerPhone,
+            String customerPhone,
 
-			String message
+            String message
 
-	) {
+    ) {
 
-		try {
+        try {
 
-			message = message.trim();
+            message = message.trim();
 
-			UUID tenantId = tenantDao.findByWhatsappPhoneId(businessPhoneNumberId);
+            UUID tenantId =
+                    tenantDao.findByWhatsappPhoneId(
+                            businessPhoneNumberId);
 
-			if (tenantId == null) {
+            if (tenantId == null) {
 
-				whatsappService.sendMessage(
+                whatsappService.sendMessage(
 
-						new SendWhatsappRequest(
+                        new SendWhatsappRequest(
 
-								customerPhone,
+                                customerPhone,
 
-								"""
-										Business not configured.
-										Please contact support.
-										"""));
+                                """
+                                Business not configured.
+                                Please contact support.
+                                """));
 
-				return;
-			}
+                return;
+            }
 
-			String tenantName = tenantDao.getTenantName(tenantId);
+            String tenantName =
+                    tenantDao.getTenantName(
+                            tenantId);
 
-			var session = sessionDao.findByPhone(customerPhone);
+            var session =
+                    sessionDao.findByPhone(
+                            customerPhone);
 
-			/*
-			 * START FLOW
-			 */
-			if ("book".equalsIgnoreCase(message)) {
+            /*
+             * START FLOW
+             */
+            if ("book".equalsIgnoreCase(message)) {
 
-				sessionDao.saveSession(
+                sessionDao.saveSession(
 
-						customerPhone,
+                        customerPhone,
 
-						tenantId,
+                        tenantId,
 
-						"DATE_SELECTION");
+                        "DATE_SELECTION");
 
-				whatsappService.sendDateSelectionMenu(
+                whatsappService.sendDateSelectionMenu(
 
-						customerPhone,
+                        customerPhone,
 
-						tenantName);
+                        tenantName);
 
-				return;
-			}
+                return;
+            }
 
-			/*
-			 * DATE SELECTION
-			 */
-			if (
+            /*
+             * DATE SELECTION
+             */
+            if (
 
-			session != null
+            session != null
 
-					&&
+                    &&
 
-					"DATE_SELECTION".equals(session.currentStep())
+                    "DATE_SELECTION".equals(
+                            session.stepName())
 
-			) {
+            ) {
 
-				LocalDate bookingDate;
+                LocalDate bookingDate;
 
-				if ("1".equals(message)) {
+                if ("1".equals(message)) {
 
-					bookingDate = LocalDate.now();
+                    bookingDate = LocalDate.now();
 
-				} else if ("2".equals(message)) {
+                } else if ("2".equals(message)) {
 
-					bookingDate = LocalDate.now().plusDays(1);
+                    bookingDate = LocalDate.now().plusDays(1);
 
-				} else {
+                } else {
 
-					whatsappService.sendMessage(
+                    whatsappService.sendMessage(
 
-							new SendWhatsappRequest(
+                            new SendWhatsappRequest(
 
-									customerPhone,
+                                    customerPhone,
 
-									"""
-											Invalid option.
+                                    """
+                                    Invalid option.
 
-											Reply:
+                                    Reply:
 
-											1 - Today
+                                    1 - Today
 
-											2 - Tomorrow
-											"""));
+                                    2 - Tomorrow
+                                    """));
 
-					return;
-				}
+                    return;
+                }
 
-				DayOfWeek dayOfWeek = bookingDate.getDayOfWeek();
+                DayOfWeek dayOfWeek =
+                        bookingDate.getDayOfWeek();
 
-				String dayName = dayOfWeek.name();
+                String dayName =
+                        dayOfWeek.name();
 
-				List<ProviderDto> providers = providerDao.findAvailableProviders(
+                List<ProviderDto> providers =
+                        providerDao.findAvailableProviders(
 
-						tenantId,
+                                tenantId,
 
-						dayName);
+                                dayName);
 
-				if (providers.isEmpty()) {
+                if (providers.isEmpty()) {
 
-					whatsappService.sendMessage(
+                    whatsappService.sendMessage(
 
-							new SendWhatsappRequest(
+                            new SendWhatsappRequest(
 
-									customerPhone,
+                                    customerPhone,
 
-									"""
-											No providers available
-											for selected date.
-											"""));
+                                    """
+                                    No providers available
+                                    for selected date.
+                                    """));
 
-					return;
-				}
+                    return;
+                }
 
-				sessionDao.updateVisitDate(
+                sessionDao.updateVisitDate(
 
-						customerPhone,
+                        customerPhone,
 
-						bookingDate,
+                        bookingDate,
 
-						"PROVIDER_SELECTION");
+                        "PROVIDER_SELECTION");
 
-				StringBuilder providerText = new StringBuilder();
+                StringBuilder providerText =
+                        new StringBuilder();
 
-				providerText.append("Available Providers\n\n");
+                providerText.append(
+                        "Available Providers\n\n");
 
-				int index = 1;
+                int index = 1;
 
-				for (ProviderDto provider : providers) {
+                for (ProviderDto provider : providers) {
 
-					providerText.append(index)
+                    providerText.append(index)
 
-							.append(". ")
+                            .append(". ")
 
-							.append(provider.getProviderName())
+                            .append(provider.getProviderName())
 
-							.append("\n")
+                            .append("\n")
 
-							.append(provider.getProviderType())
+                            .append(provider.getProviderType())
 
-							.append("\n")
+                            .append("\n")
 
-							.append(provider.getStartTime())
+                            .append(provider.getStartTime())
 
-							.append(" - ")
+                            .append(" - ")
 
-							.append(provider.getEndTime())
+                            .append(provider.getEndTime())
 
-							.append("\n\n");
+                            .append("\n\n");
 
-					index++;
-				}
+                    index++;
+                }
 
-				providerText.append("Reply with provider number");
+                providerText.append(
+                        "Reply with provider number");
 
-				whatsappService.sendProviderMenu(
+                whatsappService.sendProviderMenu(
 
-						customerPhone,
+                        customerPhone,
 
-						providerText.toString());
+                        providerText.toString());
 
-				return;
-			}
+                return;
+            }
 
-			/*
-			 * PROVIDER SELECTION
-			 */
-			if (
+            /*
+             * PROVIDER SELECTION
+             */
+            if (
 
-			session != null
+            session != null
 
-					&&
+                    &&
 
-					"PROVIDER_SELECTION".equals(
+                    "PROVIDER_SELECTION".equals(
+                            session.stepName())
 
-							session.currentStep())
+            ) {
 
-			) {
+                LocalDate bookingDate =
+                        session.visitDate();
 
-				LocalDate bookingDate = session.selectedVisitDate();
+                DayOfWeek dayOfWeek =
+                        bookingDate.getDayOfWeek();
 
-				DayOfWeek dayOfWeek = bookingDate.getDayOfWeek();
+                List<ProviderDto> providers =
+                        providerDao.findAvailableProviders(
 
-				List<ProviderDto> providers = providerDao.findAvailableProviders(
+                                tenantId,
 
-						tenantId,
+                                dayOfWeek.name());
 
-						dayOfWeek.name());
+                int selectedIndex;
 
-				int selectedIndex;
+                try {
 
-				try {
+                    selectedIndex =
+                            Integer.parseInt(message);
 
-					selectedIndex = Integer.parseInt(message);
+                } catch (Exception ex) {
 
-				} catch (Exception ex) {
+                    whatsappService.sendMessage(
 
-					whatsappService.sendMessage(
+                            new SendWhatsappRequest(
 
-							new SendWhatsappRequest(
+                                    customerPhone,
 
-									customerPhone,
+                                    "Invalid provider selection."));
 
-									"Invalid provider selection."));
+                    return;
+                }
 
-					return;
-				}
+                if (
 
-				if (
+                selectedIndex < 1
 
-				selectedIndex < 1
+                        ||
 
-						||
+                        selectedIndex > providers.size()
 
-						selectedIndex > providers.size()
+                ) {
 
-				) {
+                    whatsappService.sendMessage(
 
-					whatsappService.sendMessage(
+                            new SendWhatsappRequest(
 
-							new SendWhatsappRequest(
+                                    customerPhone,
 
-									customerPhone,
+                                    "Invalid provider selection."));
 
-									"Invalid provider selection."));
+                    return;
+                }
 
-					return;
-				}
+                ProviderDto selectedProvider =
+                        providers.get(selectedIndex - 1);
 
-				ProviderDto selectedProvider = providers.get(selectedIndex - 1);
+                sessionDao.updateProvider(
 
-				sessionDao.updateProvider(
+                        customerPhone,
 
-						customerPhone,
+                        selectedProvider.getProviderId());
 
-						selectedProvider.getProviderId());
+                QueueTokenResponse token =
 
-				QueueTokenResponse token =
+                        queueService.generateTokenFromWhatsapp(
 
-						queueService.generateTokenFromWhatsapp(
+                                tenantId,
 
-								tenantId,
+                                customerPhone,
 
-								customerPhone,
+                                selectedProvider.getProviderId(),
 
-								selectedProvider.getProviderId(),
+                                bookingDate);
 
-								bookingDate);
+                int waitingCount =
 
-				int waitingCount =
+                        queueService.getWaitingCount(
 
-						queueService.getWaitingCount(
+                                selectedProvider.getProviderId(),
 
-								selectedProvider.getProviderId(),
+                                bookingDate);
 
-								bookingDate);
+                int estimatedWait =
+                        waitingCount * 5;
 
-				int estimatedWait = waitingCount * 5;
+                String trackingUrl =
+                        TRACKING_BASE_URL
+                                + token.getTrackingId();
 
-				String trackingUrl = TRACKING_BASE_URL + token.getTrackingId();
+                whatsappService.sendQueueConfirmation(
 
-				whatsappService.sendQueueConfirmation(
+                        customerPhone,
 
-						customerPhone,
+                        selectedProvider.getProviderName(),
 
-						selectedProvider.getProviderName(),
+                        selectedProvider.getProviderType(),
 
-						selectedProvider.getProviderType(),
+                        token.getTokenNumber(),
 
-						token.getTokenNumber(),
+                        waitingCount,
 
-						waitingCount,
+                        estimatedWait,
 
-						estimatedWait,
+                        trackingUrl);
 
-						trackingUrl);
+                sessionDao.deleteSession(
+                        customerPhone);
 
-				sessionDao.deleteSession(customerPhone);
-			}
+                return;
+            }
 
-		} catch (Exception ex) {
+        } catch (Exception ex) {
 
-			ex.printStackTrace();
+            ex.printStackTrace();
 
-			whatsappService.sendErrorMessage(customerPhone);
-		}
-	}
-
+            whatsappService.sendErrorMessage(
+                    customerPhone);
+        }
+    }
 }

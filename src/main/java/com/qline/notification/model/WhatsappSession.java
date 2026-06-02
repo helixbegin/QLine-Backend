@@ -10,13 +10,15 @@ public record WhatsappSession(
 
 		UUID tenantId,
 
-		String currentStep,
+		String stepName,
 
-		UUID selectedProviderId,
+		String serviceName,
 
-		LocalDate selectedVisitDate,
+		UUID providerId,
 
-		String bookingType,
+		LocalDate visitDate,
+
+		String bookingMode,
 
 		LocalDateTime updatedAt
 
