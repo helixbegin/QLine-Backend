@@ -1,5 +1,7 @@
 package com.qline.notification.service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import com.qline.notification.dto.SendWhatsappRequest;
+import com.qline.provider.dto.ProviderDto;
 
 @Service
 public class WhatsappService {
@@ -27,12 +30,15 @@ public class WhatsappService {
 	/*
 	 * SEND TEXT MESSAGE
 	 */
-	public String sendMessage(SendWhatsappRequest request) {
+	public String sendMessage(
+
+			SendWhatsappRequest request
+
+	) {
 
 		String url = """
-				https://graph.facebook.com/v19.0/
-				%s/messages
-				""".formatted(phoneNumberId).replaceAll("\\s+", "");
+				https://graph.facebook.com/v19.0/%s/messages
+				""".formatted(phoneNumberId);
 
 		HttpHeaders headers = new HttpHeaders();
 
@@ -48,7 +54,9 @@ public class WhatsappService {
 
 				"type", "text",
 
-				"text", Map.of("body", request.message()));
+				"text", Map.of(
+
+						"body", request.message()));
 
 		HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
@@ -66,9 +74,9 @@ public class WhatsappService {
 	}
 
 	/*
-	 * DATE SELECTION
+	 * DATE SELECTION MENU
 	 */
-	public void sendDateSelectionMenu(
+	public String sendDateSelectionMenu(
 
 			String customerPhone,
 
@@ -76,41 +84,154 @@ public class WhatsappService {
 
 	) {
 
-		sendMessage(
+		String url = """
+				https://graph.facebook.com/v19.0/%s/messages
+				""".formatted(phoneNumberId);
 
-				new SendWhatsappRequest(
+		HttpHeaders headers = new HttpHeaders();
 
-						customerPhone,
+		headers.setBearerAuth(accessToken);
 
-						"""
-								Welcome to %s
+		headers.setContentType(MediaType.APPLICATION_JSON);
 
-								Please select booking date
+		Map<String, Object> body = Map.of(
 
-								1 - Today
+				"messaging_product", "whatsapp",
 
-								2 - Tomorrow
-								""".formatted(tenantName)));
+				"to", customerPhone,
+
+				"type", "interactive",
+
+				"interactive", Map.of(
+
+						"type", "list",
+
+						"header", Map.of(
+
+								"type", "text",
+
+								"text", tenantName),
+
+						"body", Map.of(
+
+								"text", "Please select booking date"),
+
+						"action", Map.of(
+
+								"button", "Choose Date",
+
+								"sections", List.of(
+
+										Map.of(
+
+												"title", "Available Dates",
+
+												"rows", List.of(
+
+														Map.of(
+
+																"id", "TODAY",
+
+																"title", "Today"),
+
+														Map.of(
+
+																"id", "TOMORROW",
+
+																"title", "Tomorrow")))))));
+
+		HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+		ResponseEntity<String> response = restTemplate.exchange(
+
+				url,
+
+				HttpMethod.POST,
+
+				entity,
+
+				String.class);
+
+		return response.getBody();
 	}
 
 	/*
-	 * PROVIDER LIST
+	 * PROVIDER SELECTION MENU
 	 */
-	public void sendProviderMenu(
+	public String sendProviderMenu(
 
 			String customerPhone,
 
-			String providerMessage
+			List<ProviderDto> providers
 
 	) {
 
-		sendMessage(
+		String url = """
+				https://graph.facebook.com/v19.0/%s/messages
+				""".formatted(phoneNumberId);
 
-				new SendWhatsappRequest(
+		HttpHeaders headers = new HttpHeaders();
 
-						customerPhone,
+		headers.setBearerAuth(accessToken);
 
-						providerMessage));
+		headers.setContentType(MediaType.APPLICATION_JSON);
+
+		List<Map<String, Object>> rows = new ArrayList<>();
+
+		for (ProviderDto provider : providers) {
+
+			rows.add(
+
+					Map.of(
+
+							"id", provider.getProviderId().toString(),
+
+							"title", provider.getProviderName() + " - " + provider.getProviderType(),
+
+							"description", provider.getStartTime() + " - " + provider.getEndTime()));
+		}
+
+		Map<String, Object> body = Map.of(
+
+				"messaging_product", "whatsapp",
+
+				"to", customerPhone,
+
+				"type", "interactive",
+
+				"interactive", Map.of(
+
+						"type", "list",
+
+						"body", Map.of(
+
+								"text", "Select Provider"),
+
+						"action", Map.of(
+
+								"button", "Choose Provider",
+
+								"sections", List.of(
+
+										Map.of(
+
+												"title", "Available Providers",
+
+												"rows", rows)))));
+
+		HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+		ResponseEntity<String> response = restTemplate.exchange(
+
+				url,
+
+				HttpMethod.POST,
+
+				entity,
+
+				String.class);
+
+		return response.getBody();
 	}
 
 	/*
@@ -141,24 +262,24 @@ public class WhatsappService {
 						customerPhone,
 
 						"""
-								Booking Confirmed
+								✅ Booking Confirmed
 
-								Provider:
+								👨‍⚕️ Provider:
 								%s
 
-								Type:
+								🏥 Department:
 								%s
 
-								Token:
+								🎟 Token:
 								%d
 
-								Queue Ahead:
+								⏳ Queue Ahead:
 								%d
 
-								Estimated Wait:
+								⌛ Estimated Wait:
 								%d mins
 
-								Track Queue:
+								🔗 Track Queue:
 								%s
 								""".formatted(
 
@@ -176,7 +297,7 @@ public class WhatsappService {
 	}
 
 	/*
-	 * GENERIC ERROR
+	 * ERROR MESSAGE
 	 */
 	public void sendErrorMessage(
 
@@ -196,5 +317,4 @@ public class WhatsappService {
 								Please try again later.
 								"""));
 	}
-
 }
