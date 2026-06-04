@@ -1,6 +1,5 @@
 package com.qline.notification.service;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -22,9 +21,13 @@ import lombok.RequiredArgsConstructor;
 public class ConversationService {
 
     private final WhatsappSessionDao sessionDao;
+
     private final WhatsappService whatsappService;
+
     private final QueueService queueService;
+
     private final TenantDao tenantDao;
+
     private final ProviderDao providerDao;
 
     private static final String TRACKING_BASE_URL =
@@ -70,7 +73,7 @@ public class ConversationService {
                             customerPhone);
 
             /*
-             * START FLOW
+             * START BOOKING FLOW
              */
             if ("book".equalsIgnoreCase(message)) {
 
@@ -107,13 +110,15 @@ public class ConversationService {
 
                 LocalDate bookingDate;
 
-                if ("1".equals(message)) {
+                if ("TODAY".equalsIgnoreCase(message)) {
 
-                    bookingDate = LocalDate.now();
+                    bookingDate =
+                            LocalDate.now();
 
-                } else if ("2".equals(message)) {
+                } else if ("TOMORROW".equalsIgnoreCase(message)) {
 
-                    bookingDate = LocalDate.now().plusDays(1);
+                    bookingDate =
+                            LocalDate.now().plusDays(1);
 
                 } else {
 
@@ -123,7 +128,7 @@ public class ConversationService {
 
                                     customerPhone,
 
-                                    "Invalid option. Reply 1 or 2"));
+                                    "Please select a date from the menu."));
 
                     return;
                 }
@@ -143,7 +148,10 @@ public class ConversationService {
 
                                     customerPhone,
 
-                                    "No providers available."));
+                                    """
+                                    No providers available
+                                    for selected date.
+                                    """));
 
                     return;
                 }
@@ -156,28 +164,11 @@ public class ConversationService {
 
                         "PROVIDER_SELECTION");
 
-                StringBuilder text =
-                        new StringBuilder();
-
-                int i = 1;
-
-                for (ProviderDto provider : providers) {
-
-                    text.append(i++)
-                            .append(". ")
-                            .append(provider.getProviderName())
-                            .append(" (")
-                            .append(provider.getProviderType())
-                            .append(")\n");
-                }
-
-                text.append("\nReply with provider number");
-
                 whatsappService.sendProviderMenu(
 
                         customerPhone,
 
-                        text.toString());
+                        providers);
 
                 return;
             }
@@ -206,11 +197,49 @@ public class ConversationService {
 
                                 bookingDate.getDayOfWeek().name());
 
-                int selectedIndex =
-                        Integer.parseInt(message);
+                UUID selectedProviderId;
+
+                try {
+
+                    selectedProviderId =
+                            UUID.fromString(message);
+
+                } catch (Exception ex) {
+
+                    whatsappService.sendMessage(
+
+                            new SendWhatsappRequest(
+
+                                    customerPhone,
+
+                                    "Please select a provider from the list."));
+
+                    return;
+                }
 
                 ProviderDto provider =
-                        providers.get(selectedIndex - 1);
+                        providers.stream()
+
+                                .filter(p ->
+                                        p.getProviderId()
+                                                .equals(selectedProviderId))
+
+                                .findFirst()
+
+                                .orElse(null);
+
+                if (provider == null) {
+
+                    whatsappService.sendMessage(
+
+                            new SendWhatsappRequest(
+
+                                    customerPhone,
+
+                                    "Invalid provider selected."));
+
+                    return;
+                }
 
                 sessionDao.updateProvider(
 
@@ -236,6 +265,9 @@ public class ConversationService {
 
                                 bookingDate);
 
+                int estimatedWait =
+                        waitingCount * 5;
+
                 String trackingUrl =
                         TRACKING_BASE_URL
                                 + token.getTrackingId();
@@ -252,7 +284,7 @@ public class ConversationService {
 
                         waitingCount,
 
-                        waitingCount * 5,
+                        estimatedWait,
 
                         trackingUrl);
 
