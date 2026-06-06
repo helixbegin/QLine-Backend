@@ -166,9 +166,7 @@ public class WhatsappService {
 
 	) {
 
-		String url = """
-				https://graph.facebook.com/v19.0/%s/messages
-				""".formatted(phoneNumberId);
+		String url = "https://graph.facebook.com/v19.0/%s/messages".formatted(phoneNumberId);
 
 		HttpHeaders headers = new HttpHeaders();
 
@@ -180,16 +178,42 @@ public class WhatsappService {
 
 		for (ProviderDto provider : providers) {
 
+			String title = provider.getProviderName();
+
+			// WhatsApp List Row Title max = 24 chars
+			if (title.length() > 24) {
+
+				title = title.substring(0, 21) + "...";
+			}
+
+			String description = provider.getProviderType() + " | " + provider.getStartTime() + "-"
+					+ provider.getEndTime();
+
+			// WhatsApp Description max = 72 chars
+			if (description.length() > 72) {
+
+				description = description.substring(0, 69) + "...";
+			}
+
 			rows.add(
 
 					Map.of(
 
 							"id", provider.getProviderId().toString(),
 
-							"title", provider.getProviderName() + " - " + provider.getProviderType(),
+							"title", title,
 
-							"description", provider.getStartTime() + " - " + provider.getEndTime()));
+							"description", description));
 		}
+
+		System.out.println("========== PROVIDERS ==========");
+
+		providers.forEach(provider ->
+
+		System.out.println(
+
+				provider.getProviderName() + " | " + provider.getProviderType() + " | " + provider.getStartTime() + "-"
+						+ provider.getEndTime()));
 
 		Map<String, Object> body = Map.of(
 
@@ -199,37 +223,57 @@ public class WhatsappService {
 
 				"type", "interactive",
 
-				"interactive", Map.of(
+				"interactive",
+
+				Map.of(
 
 						"type", "list",
 
-						"body", Map.of(
+						"body",
 
-								"text", "Select Provider"),
+						Map.of(
 
-						"action", Map.of(
+								"text",
 
-								"button", "Choose Provider",
+								"Select a Provider"),
 
-								"sections", List.of(
+						"action",
+
+						Map.of(
+
+								"button",
+
+								"Choose Provider",
+
+								"sections",
+
+								List.of(
 
 										Map.of(
 
-												"title", "Available Providers",
+												"title",
 
-												"rows", rows)))));
+												"Available Providers",
 
-		HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+												"rows",
 
-		ResponseEntity<String> response = restTemplate.exchange(
+												rows)))));
 
-				url,
+		HttpEntity<Map<String, Object>> entity =
 
-				HttpMethod.POST,
+				new HttpEntity<>(body, headers);
 
-				entity,
+		ResponseEntity<String> response =
 
-				String.class);
+				restTemplate.exchange(
+
+						url,
+
+						HttpMethod.POST,
+
+						entity,
+
+						String.class);
 
 		return response.getBody();
 	}
