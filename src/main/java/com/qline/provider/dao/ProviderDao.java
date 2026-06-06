@@ -97,7 +97,7 @@ public class ProviderDao {
 
 		String sql = """
 
-				SELECT
+				SELECT DISTINCT
 
 				    sp.id,
 
@@ -121,17 +121,17 @@ public class ProviderDao {
 
 				WHERE sp.tenant_id = :tenantId
 
-				AND ps.day_name = :dayName
+				AND UPPER(ps.day_name) = UPPER(:dayName)
 
 				AND sp.active = true
 
 				AND ps.active = true
 
-				ORDER BY sp.display_order
+				ORDER BY sp.provider_name
 
 				""";
 
-		return jdbc.query(
+		List<ProviderDto> providers = jdbc.query(
 
 				sql,
 
@@ -158,6 +158,28 @@ public class ProviderDao {
 						.maxDailyCapacity(rs.getInt("max_daily_capacity"))
 
 						.build());
+
+		System.out.println("Providers found = " + providers.size());
+
+		providers.forEach(provider ->
+
+		System.out.println(
+
+				provider.getProviderName()
+
+						+ " | "
+
+						+ provider.getProviderType()
+
+						+ " | "
+
+						+ provider.getStartTime()
+
+						+ " - "
+
+						+ provider.getEndTime()));
+
+		return providers;
 	}
 
 	/*
