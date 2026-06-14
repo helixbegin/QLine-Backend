@@ -17,119 +17,37 @@ import lombok.RequiredArgsConstructor;
 public class QueueService {
 
 	private final QueueDao queueDao;
-
 	private final CustomerDao customerDao;
 
-	/*
-	 * MANUAL TOKEN CREATION
-	 */
-	public QueueTokenResponse createToken(
-
-			UUID tenantId,
-
-			UUID customerId,
-
-			UUID providerId,
-
-			LocalDate bookingDate
-
-	) {
-
-		return queueDao.generateToken(
-
-				tenantId,
-
-				customerId,
-
-				providerId,
-
-				bookingDate);
+	public QueueTokenResponse createToken(UUID tenantId, UUID customerId, UUID providerId, LocalDate bookingDate) {
+		return queueDao.generateToken(tenantId, customerId, providerId, bookingDate);
 	}
 
-	/*
-	 * WHATSAPP TOKEN CREATION
-	 */
-	public QueueTokenResponse generateTokenFromWhatsapp(
-
-			UUID tenantId,
-
-			String phoneNumber,
-
-			UUID providerId,
-
-			LocalDate bookingDate
-
-	) {
-
-		UUID customerId = customerDao.findOrCreateByPhone(
-
-				tenantId,
-
-				phoneNumber);
-
-		return createToken(
-
-				tenantId,
-
-				customerId,
-
-				providerId,
-
-				bookingDate);
+	public QueueTokenResponse generateTokenFromWhatsapp(UUID tenantId, String phoneNumber, UUID providerId, LocalDate bookingDate) {
+		UUID customerId = customerDao.findOrCreateByPhone(tenantId, phoneNumber);
+		return createToken(tenantId, customerId, providerId, bookingDate);
 	}
 
-	/*
-	 * WAITING COUNT FOR PROVIDER
-	 */
-	public int getWaitingCount(
-
-			UUID providerId,
-
-			LocalDate bookingDate
-
-	) {
-
-		return queueDao.countWaitingTokens(
-
-				providerId,
-
-				bookingDate);
+	public int getWaitingCount(UUID providerId, LocalDate bookingDate) {
+		return queueDao.countWaitingTokens(providerId, bookingDate);
 	}
 
-	/*
-	 * CALL TOKEN
-	 */
-	public void callToken(
-
-			UUID queueId
-
-	) {
-
+	public void callToken(UUID queueId) {
 		queueDao.callToken(queueId);
 	}
 
-	/*
-	 * COMPLETE TOKEN
-	 */
-	public void completeToken(
-
-			UUID queueId
-
-	) {
-
+	public void completeToken(UUID queueId) {
 		queueDao.completeToken(queueId);
 	}
 
-	/*
-	 * TRACK TOKEN
-	 */
-	public QueueTrackingResponse getTrackingDetails(
-
-			UUID trackingId
-
-	) {
-
+	public QueueTrackingResponse getTrackingDetails(UUID trackingId) {
 		return queueDao.getTrackingDetails(trackingId);
 	}
 
+	/*
+	 * NEW FEATURE: Service layer link for phone lookups
+	 */
+	public QueueTrackingResponse getActiveStatusByPhone(UUID tenantId, String phoneNumber) {
+		return queueDao.getActiveTokenByPhone(tenantId, phoneNumber);
+	}
 }
